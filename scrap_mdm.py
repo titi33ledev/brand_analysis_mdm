@@ -6,6 +6,9 @@ import random
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import pandas as pd
+from selenium.webdriver.chrome.options import Options
+import concurrent.futures
+
 
 #%%
 def scrap_first_page(mot_cles):
@@ -43,91 +46,126 @@ def scrap_first_page(mot_cles):
     page_source = driver.page_source
     
     return BeautifulSoup(page_source, 'html.parser')
-
-
-#%%
-
-def scrap_data_products(soup):
-    
     
 # %%
 def process(soup):
-    
     titles = []
     prices = []
-    product_urls = []
+    brands = []
+    url_products = []
+    
+    uri = "https://www.maisonsdumonde.com"
     
     titles_divs = soup.find_all('h2', class_='text-primary font-regular ds-body-m mb-2 h-[3em] line-clamp-2 after:absolute after:inset-0')
     prices_divs = soup.find_all('p', class_='text-primary-accent font-semibold ds-body-m inline-block')
-    brand_divs = soup.find_all('p', attrs={'data-el': 'product-card__brand'})
-
+    brands_divs = soup.find_all('p', attrs={'data-el': 'product-card__brand'})
+    url_products_divs = soup.find_all('a', href=True)
     
-    brand_divs = soup.find_all('p', attrs={'data-el': 'product-card__brand'})
-    
-    for brand_div in brand_divs:
-        link_div = brand_div.find_next('a', attrs={'data-el': 'resolver-link'})
-        if link_div is not None:
-            product_url = link_div['href']
-            product_urls.append(product_url)
-    
-    
-    
-    for titles_div, prices_div, product_url in zip(titles_divs, prices_divs, product_urls):
-        price = prices_div.get_text().strip().replace('\u202f', '').replace('€', '').replace(',', '.') if prices_div else "NaN"
-        title = titles_div.get_text().strip()
-
-        titles.append(title)
-        prices.append(price)
-
+    for url_product_div in url_products_divs:
+        url = url_product_div['href']
+        if url.startswith('/FR/fr/p/'):
+            url_products.append(uri + url)
+            
+            
+            title = url_product_div.find('h2', class_='text-primary font-regular ds-body-m mb-2 h-[3em] line-clamp-2 after:absolute after:inset-0')
+            if title:
+                title_text = title.get_text().strip()
+            else:
+                title_text = "NaN"
+            titles.append(title_text)
+            
+            
+            price = url_product_div.find_next('p', class_='text-primary-accent font-semibold ds-body-m inline-block')
+            if price:
+                price_text = price.get_text().strip().replace('\u202f', '').replace('€', '').replace(',', '.')
+            else:
+                price_text = "NaN"
+            prices.append(price_text)
+            
+            
+            brand_div = url_product_div.find_next('p', attrs={'data-el': 'product-card__brand'})
+            if brand_div:
+                brand_text = brand_div.get_text().strip()
+            else:
+                brand_text = "NaN"
+            brands.append(brand_text)
+            
 
     df = pd.DataFrame(
-        {'titres' : titles,
-        'prix' : prices,
-        'url_produits' : product_url
-        }
+        {'titres': titles,
+         'prix': prices,
+         'marques': brands,
+         'urls': url_products
+         }
     )
-    
+
     return df
 # %%
-def scrap_product_url(df,nom_colonne='url_produits'):
+def get_image_count(url):
+    try:
+        
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(url)
+        
+        time.sleep(random.randint(1, 5))
+        
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        
+        media_gallery = soup.find('div', attrs={'data-el': 'media-gallery'})
+        picture_tags = media_gallery.find_all('picture', {'data-el': 'ds-image'})
+        image_count = len(picture_tags)
+        
+        driver.quit()
+        
+        
+        return image_count
     
+    
+    except Exception as e:
+        print(f"Une erreur s'est produite lors de la récupération du nombre d'images pour l'URL {url}: {e}")
+        return 0
+
+
+#%%
+def scrap_products_url(df, nom_colonne='urls'):
     nb_images = []
     descriptions = []
-    uri = "https://www.maisonsdumonde.com/"
-    
+
     if nom_colonne not in df.columns:
         print(f"La colonne '{nom_colonne}' n'existe pas dans le DataFrame.")
         return None
-    
-    for index, row in df.iterrows():
-        driver = webdriver.Chrome()
-        lien = uri + row['url_produits']    
-        driver.get(lien)
+
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        driver = webdriver.Chrome(options=chrome_options)
         
-        time.sleep(random.randint(10,20))
+        
+        driver.get("https://www.maisonsdumonde.com/")
+        time.sleep(random.randint(25, 30))
+        
         
         button = driver.find_element(By.XPATH, '//*[@id="footer_tc_privacy_button_2"]')
         button.click()
-        
-        page_source = driver.page_source
-        
-        driver.implicitly_wait(7)
-        
-        pagination_buttons = soup.find_all('button', attrs={'data-el': 'ds-pager__bullet'})
-        nombre_images = len(pagination_buttons)        
-        product_description = soup.find('div', attrs={'data-v-cd98ad86': '', 'data-el': 'product-description-panel__rich-text'})
+        driver.quit()
 
-        nb_images.append(nombre_images)
-        descriptions.append(product_description)
+        urls = df[nom_colonne].tolist()
         
-        
-    df = pd.DataFrame(
-    {"nombres d'images" : nb_images,
-        "descriptions" : descriptions
-        }
-    )
+        with tqdm.tqdm(total=len(urls), desc="Scraping URLs") as pbar:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                results = executor.map(get_image_count, urls)
+                for result in results:
+                    nb_images.append(result)
+                    pbar.update(1)
+
+        df = pd.DataFrame({"nombres d'images": nb_images})
+        return df
     
-    return df
-        
-        
+    
+    except Exception as e:
+        print(f"Une erreur s'est produite lors du scraping des URLs : {e}")
+        return None
+
 # %%
