@@ -29,33 +29,10 @@ if 'df' in locals():
     col4.metric("Nombre d'images moy.",f"{moyenne_images:.2f}")
 
     st.subheader("Partie 2 : Analyse des caractères produits :abc:")
-
-    #Afficher nuages de mots les plus fréquents
     
     image_wordcloud = brand_worldcloud(df)
     st.image(image_wordcloud)
 
-    #Afficher quartiles des prix
     fig =  px.box(df, y="prix", title="Analyse des prix")
-    st.plotly_chart(fig.show())
-
-
-#         # Afficher le boxplot des prix
-#         fig_quartiles = quartiles_prix_boxplot(df)
-#         st.plotly_chart(fig_quartiles)
-
-#         st.markdown("La boîte à moustaches (quartiles_prix_boxplot) est un outil mathématique et graphique qui permet d'analyser la répartition des prix dans un ensemble de données. Elle fournit des informations sur les quartiles, la médiane, les valeurs aberrantes et l'étendue des prix. Ces mesures statistiques permettent d'évaluer la dispersion et la distribution des prix, ce qui est utile pour la comparaison des données, la détection des valeurs aberrantes et la prise de décision éclairée.")
-        
-
-#         st.subheader("Partie 2 : Analyse des caractères produits :abc:")
-        
-#         #Afficher nuages de mots les plus fréquents
-#         image_wordcloud, titles_filtre = title_to_worldcloud(df)
-#         st.image(image_wordcloud)
-        
-#         st.markdown("Le WordCloud est une représentation graphique des mots les plus fréquents dans les titres des produits. Il permet une visualisation rapide des mots clés pertinents et des tendances. Les mots sont affichés en fonction de leur fréquence, avec une taille plus grande pour les mots les plus fréquents.")
-
-#         # Afficher le classement des caractères les plus donnés
-#         fig_classement_caracteres = n_gram(titles_filtre)
-#         st.plotly_chart(fig_classement_caracteres)
+    st.plotly_chart(fig)
 # %%

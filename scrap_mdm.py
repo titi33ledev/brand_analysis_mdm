@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import plotly.express as px
-
+import tqdm
 
 #%%
 def scrap_first_page(mot_cles):
@@ -170,7 +170,7 @@ def scrap_products_url(df, nom_colonne='urls'):
                     nb_images.append(result)
                     pbar.update(1)
                     
-        moyenne_images = result.mean()
+        moyenne_images = sum(nb_images) / len(nb_images)
         
         return moyenne_images
     
