@@ -8,6 +8,13 @@ from selenium.webdriver.common.by import By
 import pandas as pd
 from selenium.webdriver.chrome.options import Options
 import concurrent.futures
+import numpy as np
+import re
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+import plotly.express as px
 
 
 #%%
@@ -77,7 +84,9 @@ def process(soup):
             
             price = url_product_div.find_next('p', class_='text-primary-accent font-semibold ds-body-m inline-block')
             if price:
-                price_text = price.get_text().strip().replace('\u202f', '').replace('€', '').replace(',', '.')
+                price_text = price.get_text().strip().replace('\u202f', '').replace('€', '').replace(',', '.').replace('\xa0', '')
+                # Correction du prix
+                price_text = re.sub(r'[^0-9.]', '', price_text)
             else:
                 price_text = "NaN"
             prices.append(price_text)
@@ -100,6 +109,7 @@ def process(soup):
     )
 
     return df
+
 # %%
 def get_image_count(url):
     try:
@@ -130,8 +140,8 @@ def get_image_count(url):
 
 #%%
 def scrap_products_url(df, nom_colonne='urls'):
+    
     nb_images = []
-    descriptions = []
 
     if nom_colonne not in df.columns:
         print(f"La colonne '{nom_colonne}' n'existe pas dans le DataFrame.")
@@ -159,13 +169,48 @@ def scrap_products_url(df, nom_colonne='urls'):
                 for result in results:
                     nb_images.append(result)
                     pbar.update(1)
-
-        df = pd.DataFrame({"nombres d'images": nb_images})
-        return df
+                    
+        moyenne_images = result.mean()
+        
+        return moyenne_images
     
     
     except Exception as e:
         print(f"Une erreur s'est produite lors du scraping des URLs : {e}")
         return None
 
+# %%
+def compute_stats(df):
+    
+    moyenne_caracteres_titres = round(df['titres'].apply(lambda x: len(x)).mean(),2)  
+    moyenne_prix = round(pd.to_numeric(df['prix'], errors='coerce').mean(),2)
+    mediane_prix = round(pd.to_numeric(df['prix'], errors='coerce').median(),2)
+    
+    return moyenne_caracteres_titres, moyenne_prix, mediane_prix
+
+
+#%%
+def brand_worldcloud(df,nom_colonne='marques'):
+
+    marques = []
+    
+    for marque in df[nom_colonne]:
+        if isinstance(marque, str) and marque != 'NaN':
+            marques.append(marque)
+    
+    text = ' '.join(marques)
+
+    wordcloud = WordCloud(width=800, 
+                    height=400, 
+                    background_color='white',
+                    colormap='rainbow').generate(text)
+    
+    image = wordcloud.to_image()
+
+    #Vérifier comment ça fonctionne
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    
+    return image 
 # %%
