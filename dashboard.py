@@ -38,3 +38,5 @@ if 'df' in locals():
 
     fig =  px.box(df, y="prix", title="Analyse des prix")
     st.plotly_chart(fig)
+    
+    st.dataframe(df)
