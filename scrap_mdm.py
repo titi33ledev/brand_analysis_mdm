@@ -136,11 +136,50 @@ def get_image_count(url):
     except Exception as e:
         print(f"Une erreur s'est produite lors de la récupération du nombre d'images pour l'URL {url}: {e}")
         return 0
+    
+#%%    
+def data_products(url):
+    try:
+        
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(url) 
+        
+        time.sleep(random.randint(1, 5))
+        
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        labels = []
+        
+        rows = soup.find_all('tr', {'data-el': 'ds-row'})
+        for row in rows:
+            label = row.find('th', {'data-el': 'ds-row__label'}).text.strip()
+            labels.append(label)
 
+        return labels
+
+    except Exception as e:
+        
+        print(f"Une erreur s'est produite lors de la récupération du nombre d'images pour l'URL {url}: {e}")
+    return 0
 
 #%%
-def scrap_products_url(df, nom_colonne='urls'):
+def counts_data_products(data_labels):
+    label_counts = {}
+
+    for labels in data_labels:
+        for label in labels:
+            if label in label_counts:
+                label_counts[label] += 1
+            else:
+                label_counts[label] = 1
+
+    df = pd.DataFrame(list(label_counts.items()), columns=['Attributs', 'Count'])
+    df = df.sort_values('Count', ascending=False).reset_index(drop=True)
     
+    return df    
+#%%
+def scrap_products_url(df, nom_colonne='urls'):
     nb_images = []
 
     if nom_colonne not in df.columns:
@@ -152,10 +191,8 @@ def scrap_products_url(df, nom_colonne='urls'):
         chrome_options.add_argument("--headless")
         driver = webdriver.Chrome(options=chrome_options)
         
-        
         driver.get("https://www.maisonsdumonde.com/")
         time.sleep(random.randint(25, 30))
-        
         
         button = driver.find_element(By.XPATH, '//*[@id="footer_tc_privacy_button_2"]')
         button.click()
@@ -163,7 +200,7 @@ def scrap_products_url(df, nom_colonne='urls'):
 
         urls = df[nom_colonne].tolist()
         
-        with tqdm.tqdm(total=len(urls), desc="Scraping URLs") as pbar:
+        with tqdm.tqdm(total=len(urls), desc="Chargement... ") as pbar:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 results = executor.map(get_image_count, urls)
                 for result in results:
@@ -173,7 +210,6 @@ def scrap_products_url(df, nom_colonne='urls'):
         moyenne_images = sum(nb_images) / len(nb_images)
         
         return moyenne_images
-    
     
     except Exception as e:
         print(f"Une erreur s'est produite lors du scraping des URLs : {e}")
@@ -187,7 +223,6 @@ def compute_stats(df):
     mediane_prix = round(pd.to_numeric(df['prix'], errors='coerce').median(),2)
     
     return moyenne_caracteres_titres, moyenne_prix, mediane_prix
-
 
 #%%
 def brand_worldcloud(df,nom_colonne='marques'):
@@ -213,4 +248,3 @@ def brand_worldcloud(df,nom_colonne='marques'):
     plt.axis('off')
     
     return image 
-# %%

@@ -3,6 +3,8 @@ import streamlit as st
 from streamlit_plotly_events import plotly_events
 import pandas as pd
 import plotly.express as px
+import numpy as np
+import time
 from st_aggrid import AgGrid
 from scrap_mdm import brand_worldcloud,compute_stats, scrap_products_url, get_image_count, process, scrap_first_page
 
@@ -28,11 +30,11 @@ if 'df' in locals():
     col3.metric("Médiane des prix", f"{mediane_prix:.2f} €")
     col4.metric("Nombre d'images moy.",f"{moyenne_images:.2f}")
 
-    st.subheader("Partie 2 : Analyse des caractères produits :abc:")
+
+    st.subheader("Analyse des marques du catalogue :abc:")
     
     image_wordcloud = brand_worldcloud(df)
     st.image(image_wordcloud)
 
     fig =  px.box(df, y="prix", title="Analyse des prix")
     st.plotly_chart(fig)
-# %%
